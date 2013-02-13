@@ -1407,6 +1407,30 @@ config MSM_CPU_FREQ_MIN
 	depends on MSM_CPU_FREQ_SET_MIN_MAX
 	default 245760
 
+config MSM_CPU_FREQ_EXTREME_UV
+	bool "Enable Extreme Undervolt frequency mode"
+	depends on ARCH_MSM7X30
+	default n
+	help
+	Enabling this option change all voltage of all frequency for the extreme undervolt.
+
+	If unsure, say N.
+
+config MSM_CPU_FREQ_OVERCLOCKING
+	bool "Enable support for CPU overclocking"
+	depends on ARCH_MSM7X30
+	default y
+	help
+	Enabling this option allow to use all overclock frequencies.
+
+config MSM_CPU_FREQ_EXTREME_OVERCLOCKING
+	bool "Enable 1881mhz CPU overclocking"
+	depends on ARCH_MSM7X30
+	default n
+	help
+	Enabling this option allow to use 1881mhz overclock frequency.
+	Warning: prolonged use of this frequency cause instability of system!
+
 endif # CPU_FREQ_MSM
 
 config MSM_CPU_AVS
@@ -2186,5 +2210,21 @@ config MSM_CACHE_DUMP_ON_PANIC
 	  look at them in a RAM dump will give useless data. Select this if you
 	  want to dump the L1 and L2 caches on panic before any flush occurs.
 	  If unsure, say N
+
+config MSM_SCHED_FAST_CPU_ONLINE
+	bool "Fast scheduler update for CPU online"
+	depends on ARCH_MSM8X60
+	default n
+	help
+	  Bypass scheduler domain reconstruction when onlining the second
+	  CPU on 8X60 to speed up operation.
+
+
+config FORCE_FAST_CHARGE
+	bool "Force AC charge mode at will"
+	default y
+	help
+	  A simple sysfs interface to force adapters that
+	  are detected as USB to charge as AC.
 
 endif
