@@ -292,10 +292,8 @@ void cpufreq_notify_transition(struct cpufreq_freqs *freqs, unsigned int state)
 		trace_cpu_frequency(freqs->new, freqs->cpu);
 		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
 				CPUFREQ_POSTCHANGE, freqs);
-		if (likely(policy) && likely(policy->cpu == freqs->cpu)) {
+		if (likely(policy) && likely(policy->cpu == freqs->cpu))
 			policy->cur = freqs->new;
-			sysfs_notify(&policy->kobj, NULL, "scaling_cur_freq");
-		}
 		break;
 	}
 }
@@ -474,9 +472,6 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	unsigned int ret = -EINVAL;
 	char	str_governor[16];
 	struct cpufreq_policy new_policy;
-	char *envp[3];
-	char buf1[64];
-	char buf2[64];
 
 	ret = cpufreq_get_policy(&new_policy, policy->cpu);
 	if (ret)
@@ -496,15 +491,6 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 
 	policy->user_policy.policy = policy->policy;
 	policy->user_policy.governor = policy->governor;
-
-	sysfs_notify(&policy->kobj, NULL, "scaling_governor");
-
-	snprintf(buf1, sizeof(buf1), "GOV=%s", policy->governor->name);
-	snprintf(buf2, sizeof(buf2), "CPU=%u", policy->cpu);
-	envp[0] = buf1;
-	envp[1] = buf2;
-	envp[2] = NULL;
-	kobject_uevent_env(cpufreq_global_kobject, KOBJ_ADD, envp);
 
 	if (ret)
 		return ret;
@@ -570,40 +556,6 @@ static ssize_t show_related_cpus(struct cpufreq_policy *policy, char *buf)
 	if (cpumask_empty(policy->related_cpus))
 		return show_cpus(policy->cpus, buf);
 	return show_cpus(policy->related_cpus, buf);
-}
-
-/**
- * show_affected_cpus - show the CPUs affected by each transition
- */
-static ssize_t show_affected_cpus(struct cpufreq_policy *policy, char *buf)
-{
-	return show_cpus(policy->cpus, buf);
-}
-
-static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
-					const char *buf, size_t count)
-{
-	unsigned int freq = 0;
-	unsigned int ret;
-
-	if (!policy->governor || !policy->governor->store_setspeed)
-		return -EINVAL;
-
-	ret = sscanf(buf, "%u", &freq);
-	if (ret != 1)
-		return -EINVAL;
-
-	policy->governor->store_setspeed(policy, freq);
-
-	return count;
-}
-
-static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
-{
-	if (!policy->governor || !policy->governor->show_setspeed)
-		return sprintf(buf, "<unsupported>\n");
-
-	return policy->governor->show_setspeed(policy, buf);
 }
 
 #ifdef CONFIG_CPU_FREQ_VDD_LEVELS
@@ -673,6 +625,39 @@ static ssize_t store_vdd_levels(struct cpufreq_policy *policy, const char *buf, 
 }
 
 #endif
+/**
+ * show_affected_cpus - show the CPUs affected by each transition
+ */
+static ssize_t show_affected_cpus(struct cpufreq_policy *policy, char *buf)
+{
+	return show_cpus(policy->cpus, buf);
+}
+
+static ssize_t store_scaling_setspeed(struct cpufreq_policy *policy,
+					const char *buf, size_t count)
+{
+	unsigned int freq = 0;
+	unsigned int ret;
+
+	if (!policy->governor || !policy->governor->store_setspeed)
+		return -EINVAL;
+
+	ret = sscanf(buf, "%u", &freq);
+	if (ret != 1)
+		return -EINVAL;
+
+	policy->governor->store_setspeed(policy, freq);
+
+	return count;
+}
+
+static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
+{
+	if (!policy->governor || !policy->governor->show_setspeed)
+		return sprintf(buf, "<unsupported>\n");
+
+	return policy->governor->show_setspeed(policy, buf);
+}
 
 /**
  * show_scaling_driver - show the current cpufreq HW/BIOS limitation
@@ -723,7 +708,7 @@ static struct attribute *default_attrs[] = {
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
 #ifdef CONFIG_CPU_FREQ_VDD_LEVELS
-	&vdd_levels.attr,
+        &vdd_levels.attr,
 #endif
 	NULL
 };

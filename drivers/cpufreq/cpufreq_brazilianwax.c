@@ -86,7 +86,7 @@ static unsigned long down_rate_us;
  * When ramping up frequency with no idle cycles jump to at least this frequency.
  * Zero disables. Set a very high value to jump to policy max freqeuncy.
  */
-#define DEFAULT_UP_MIN_FREQ 1900000
+#define DEFAULT_UP_MIN_FREQ 998400
 static unsigned int up_min_freq;
 
 /*
@@ -95,14 +95,14 @@ static unsigned int up_min_freq;
  * to minimize wakeup issues.
  * Set sleep_max_freq=0 to disable this behavior.
  */
-#define DEFAULT_SLEEP_MAX_FREQ 500000
+#define DEFAULT_SLEEP_MAX_FREQ 245760
 static unsigned int sleep_max_freq;
 
 /*
  * The frequency to set when waking up from sleep.
  * When sleep_max_freq=0 this will have no effect.
  */
-#define DEFAULT_SLEEP_WAKEUP_FREQ 800000
+#define DEFAULT_SLEEP_WAKEUP_FREQ 998400
 static unsigned int sleep_wakeup_freq;
 
 #define UP_THRESHOLD_FREQ 1800000
@@ -113,10 +113,10 @@ static unsigned int threshold_freq;
  * go below this frequency.
  * Set awake_min_freq=0 to disable this behavior.
  */
-#define DEFAULT_AWAKE_MIN_FREQ 200000
+#define DEFAULT_AWAKE_MIN_FREQ 122000
 static unsigned int awake_min_freq;
 
-static unsigned int suspendfreq = 200000;
+static unsigned int suspendfreq = 400000;
 
 /*
  * Sampling rate, I highly recommend to leave it at 2.
@@ -128,14 +128,14 @@ static unsigned int sample_rate_jiffies;
  * Minimum Freqeuncy delta when ramping up.
  * zero disables and causes to always jump straight to max frequency.
  */
-#define DEFAULT_RAMP_UP_STEP 300000
+#define DEFAULT_RAMP_UP_STEP 460800
 static unsigned int ramp_up_step;
 
 /*
  * Miminum Freqeuncy delta when ramping down.
  * zero disables and will calculate ramp down according to load heuristic.
  */
-#define DEFAULT_RAMP_DOWN_STEP 300000
+#define DEFAULT_RAMP_DOWN_STEP 384000
 static unsigned int ramp_down_step;
 
 /*
@@ -163,7 +163,7 @@ static int cpufreq_governor_brazilianwax(struct cpufreq_policy *policy,
 static
 #endif
 struct cpufreq_governor cpufreq_gov_brazilianwax = {
-        .name = "brazilianwax",
+        .name = "BrazilianWax",
         .governor = cpufreq_governor_brazilianwax,
         .max_transition_latency = 9000000,
         .owner = THIS_MODULE,
@@ -172,9 +172,9 @@ struct cpufreq_governor cpufreq_gov_brazilianwax = {
 static void brazilianwax_update_min_max(struct brazilianwax_info_s *this_brazilianwax, struct cpufreq_policy *policy, int suspend) {
         if (suspend) {
                 this_brazilianwax->min_speed = policy->min;
-//              this_brazilianwax->max_speed = sleep_max_freq;
-                this_brazilianwax->max_speed = // sleep_max_freq; but make sure it obeys the policy min/max
-                        policy->max > sleep_max_freq ? (sleep_max_freq > policy->min ? sleep_max_freq : policy->min) : policy->max;
+		this_brazilianwax->max_speed = sleep_max_freq;
+//                this_brazilianwax->max_speed = // sleep_max_freq; but make sure it obeys the policy min/max
+//                        policy->max > sleep_max_freq ? (sleep_max_freq > policy->min ? sleep_max_freq : policy->min) : policy->max;
         } else {
                 this_brazilianwax->min_speed = // awake_min_freq; but make sure it obeys the policy min/max
                         policy->min < awake_min_freq ? (awake_min_freq < policy->max ? awake_min_freq : policy->max) : policy->min;
@@ -201,8 +201,8 @@ static void cpufreq_brazilianwax_timer(unsigned long data)
         u64 delta_time;
         int cpu_load;
         u64 update_time;
-        u64 now_idle;   
-        unsigned long new_rate;
+  	u64 now_idle; 	
+	unsigned long new_rate;
 
         struct brazilianwax_info_s *this_brazilianwax = &per_cpu(brazilianwax_info, data);
         struct cpufreq_policy *policy = this_brazilianwax->cur_policy;
@@ -250,10 +250,10 @@ static void cpufreq_brazilianwax_timer(unsigned long data)
                 if (nr_running() < 1)
                         return;
 
-                new_rate = up_rate_us;
+		new_rate = up_rate_us;
 
-                // minimize going above 1.8Ghz
-                if (policy->cur > up_min_freq) new_rate = 75000;
+		// minimize going above 1.8Ghz
+		if (policy->cur > up_min_freq) new_rate = 75000;
 
                 if (cputime64_sub(update_time, this_brazilianwax->freq_change_time) < new_rate) 
                         return;
@@ -318,7 +318,7 @@ static void cpufreq_brazilianwax_freq_change_time_work(struct work_struct *work)
         struct cpufreq_policy *policy;
         unsigned int relation = CPUFREQ_RELATION_L;
         cpumask_t tmp_mask = work_cpumask;
-        for_each_cpu(cpu, &tmp_mask) {
+        for_each_cpu(cpu, tmp_mask) {
                 this_brazilianwax = &per_cpu(brazilianwax_info, cpu);
                 policy = this_brazilianwax->cur_policy;
                 cpu_load = this_brazilianwax->cur_cpu_load;
@@ -326,33 +326,33 @@ static void cpufreq_brazilianwax_freq_change_time_work(struct work_struct *work)
                 this_brazilianwax->force_ramp_up = 0;
 
                 if (force_ramp_up || cpu_load > max_cpu_load) {
-                  if (!suspended) {
-                        if (force_ramp_up && up_min_freq && policy->cur < up_min_freq) {
-                                // imoseyon - ramp up faster
+		  if (!suspended) {
+			if (force_ramp_up && up_min_freq && policy->cur < up_min_freq) {
+			  	// imoseyon - ramp up faster
                                 new_freq = up_min_freq;
                                 relation = CPUFREQ_RELATION_L;
-                        } else if (ramp_up_step) {
+			} else if (ramp_up_step) {
                                 new_freq = policy->cur + ramp_up_step;
                                 relation = CPUFREQ_RELATION_H;
                         } else {
                                 new_freq = this_brazilianwax->max_speed;
                                 relation = CPUFREQ_RELATION_H;
                         }
-                        // try to minimize going above 1.8Ghz
-                        if ((new_freq > threshold_freq) && (cpu_load < 95)) {
-                                new_freq = threshold_freq;
-                                relation = CPUFREQ_RELATION_H;
-                        }
-                  } else {
-                        new_freq = policy->cur + 150000;
-                        if (new_freq > suspendfreq) new_freq = suspendfreq;     
-                        relation = CPUFREQ_RELATION_H;
-                  }
-                
+			// try to minimize going above 1.8Ghz
+			if ((new_freq > threshold_freq) && (cpu_load < 95)) {
+				new_freq = threshold_freq;
+				relation = CPUFREQ_RELATION_H;
+			}
+		  } else {
+			new_freq = policy->cur + 150000;
+			if (new_freq > suspendfreq) new_freq = suspendfreq; 	
+			relation = CPUFREQ_RELATION_H;
+		  }
+		
                 } else if (cpu_load < min_cpu_load) {
-                        if (cpu_load < rapid_min_cpu_load) {
-                                new_freq = awake_min_freq;
-                        } else if (ramp_down_step) {
+			if (cpu_load < rapid_min_cpu_load) {
+				new_freq = awake_min_freq;
+			} else if (ramp_down_step) {
                                   new_freq = policy->cur - ramp_down_step;
                         } else {
                                 cpu_load += 100 - max_cpu_load; // dummy load.
@@ -362,7 +362,7 @@ static void cpufreq_brazilianwax_freq_change_time_work(struct work_struct *work)
                 }
                 else new_freq = policy->cur;
 
-                old_freq = policy->cur;
+		old_freq = policy->cur;
                 new_freq = validate_freq(this_brazilianwax,new_freq);
 
                 if (new_freq != policy->cur) {
@@ -374,20 +374,20 @@ static void cpufreq_brazilianwax_freq_change_time_work(struct work_struct *work)
                         this_brazilianwax->freq_change_time_in_idle =
                                 get_cpu_idle_time_us(cpu,&this_brazilianwax->freq_change_time);
 
-                        if (relation == CPUFREQ_RELATION_L && old_freq == policy->cur) {
-                          // step down one more time
-                          new_freq = new_freq - 100000;
-                          __cpufreq_driver_target(policy, new_freq, relation);
-                          this_brazilianwax->freq_change_time_in_idle =
-                                        get_cpu_idle_time_us(cpu,&this_brazilianwax->freq_change_time);
-                        } 
-                        if (relation == CPUFREQ_RELATION_H && old_freq == policy->cur) {
-                          // step up one more time
-                          new_freq = new_freq + 100000;
-                          __cpufreq_driver_target(policy, new_freq, relation);
-                          this_brazilianwax->freq_change_time_in_idle =
-                                        get_cpu_idle_time_us(cpu,&this_brazilianwax->freq_change_time);
-                        } 
+			if (relation == CPUFREQ_RELATION_L && old_freq == policy->cur) {
+			  // step down one more time
+			  new_freq = new_freq - 100000;
+			  __cpufreq_driver_target(policy, new_freq, relation);
+			  this_brazilianwax->freq_change_time_in_idle =
+					get_cpu_idle_time_us(cpu,&this_brazilianwax->freq_change_time);
+			} 
+			if (relation == CPUFREQ_RELATION_H && old_freq == policy->cur) {
+			  // step up one more time
+			  new_freq = new_freq + 100000;
+			  __cpufreq_driver_target(policy, new_freq, relation);
+			  this_brazilianwax->freq_change_time_in_idle =
+					get_cpu_idle_time_us(cpu,&this_brazilianwax->freq_change_time);
+			} 
                 }
 
                 cpumask_clear_cpu(cpu, &work_cpumask);
@@ -642,7 +642,7 @@ static void brazilianwax_suspend(int cpu, int suspend)
 
         brazilianwax_update_min_max(this_brazilianwax,policy,suspend);
         if (!suspend) { // resume at max speed:
-                suspended=0;
+		suspended=0;
                 new_freq = validate_freq(this_brazilianwax,sleep_wakeup_freq);
 
                 if (debug_mask & BRAZILIANWAX_DEBUG_JUMPS)
@@ -653,7 +653,7 @@ static void brazilianwax_suspend(int cpu, int suspend)
 
                 if (policy->cur < this_brazilianwax->max_speed && !timer_pending(&this_brazilianwax->timer))
                         reset_timer(smp_processor_id(),this_brazilianwax);
-                pr_info("[imoseyon] brazilianwax awake at %d\n", policy->cur);
+        	pr_info("[imoseyon] brazilianwax awake at %d\n", policy->cur);
         } else {
                 // to avoid wakeup issues with quick sleep/wakeup don't change actual frequency when entering sleep
                 // to allow some time to settle down.
@@ -665,9 +665,9 @@ static void brazilianwax_suspend(int cpu, int suspend)
 
                 if (debug_mask & BRAZILIANWAX_DEBUG_JUMPS)
                         printk(KERN_INFO "BrazilianwaxS: suspending at %d\n",policy->cur);
-                __cpufreq_driver_target(policy, suspendfreq, CPUFREQ_RELATION_H);
-                pr_info("[imoseyon] brazilianwax suspending with %d\n", policy->cur);
-                suspended=1;
+		__cpufreq_driver_target(policy, suspendfreq, CPUFREQ_RELATION_H);
+        	pr_info("[imoseyon] brazilianwax suspending with %d\n", policy->cur);
+		suspended=1;
         }
 }
 
@@ -686,7 +686,7 @@ static void brazilianwax_late_resume(struct early_suspend *handler) {
 static struct early_suspend brazilianwax_power_suspend = {
         .suspend = brazilianwax_early_suspend,
         .resume = brazilianwax_late_resume,
-        .level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1,
+	.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 1,
 };
 
 static int cpufreq_governor_brazilianwax(struct cpufreq_policy *new_policy,
@@ -716,9 +716,9 @@ static int cpufreq_governor_brazilianwax(struct cpufreq_policy *new_policy,
                 this_brazilianwax->cur_policy = new_policy;
                 this_brazilianwax->enable = 1;
 
-                // imoseyon - should only register for suspend when governor active
-                register_early_suspend(&brazilianwax_power_suspend); 
-                pr_info("[imoseyon] brazilianwax active\n");
+		// imoseyon - should only register for suspend when governor active
+        	register_early_suspend(&brazilianwax_power_suspend); 
+        	pr_info("[imoseyon] brazilianwax active\n");
 
                 // notice no break here!
 
@@ -741,9 +741,9 @@ static int cpufreq_governor_brazilianwax(struct cpufreq_policy *new_policy,
                                 &brazilianwax_attr_group);
 
                 pm_idle = pm_idle_old;
-                // unregister when governor exits
-                unregister_early_suspend(&brazilianwax_power_suspend);
-                pr_info("[imoseyon] brazilianwax inactive\n");
+		// unregister when governor exits
+        	unregister_early_suspend(&brazilianwax_power_suspend);
+        	pr_info("[imoseyon] brazilianwax inactive\n");
                 break;
         }
 
@@ -769,7 +769,7 @@ static int __init cpufreq_brazilianwax_init(void)
         max_cpu_load = DEFAULT_MAX_CPU_LOAD;
         x_cpu_load = DEFAULT_X_CPU_LOAD;
         min_cpu_load = DEFAULT_MIN_CPU_LOAD;
-        rapid_min_cpu_load = RAPID_MIN_CPU_LOAD;
+	rapid_min_cpu_load = RAPID_MIN_CPU_LOAD;
 
         suspended = 0;
 
@@ -793,8 +793,7 @@ static int __init cpufreq_brazilianwax_init(void)
         }
 
         /* Scale up is high priority */
-        up_wq = alloc_workqueue("kbrazilianwax_up", WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
-        down_wq = create_workqueue("kbrazilianwax_down");
+        
 
         INIT_WORK(&freq_scale_work, cpufreq_brazilianwax_freq_change_time_work);
 
