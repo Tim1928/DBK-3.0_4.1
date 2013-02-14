@@ -1433,6 +1433,7 @@ config MSM_CPU_FREQ_EXTREME_OVERCLOCKING
 
 endif # CPU_FREQ_MSM
 
+
 config MSM_CPU_AVS
 	bool "Enable software controlled Adaptive Voltage Scaling (AVS)"
 	depends on (ARCH_MSM_SCORPION && QSD_SVS)
@@ -2006,6 +2007,33 @@ config BT_MSM_PINTEST
 	  This driver provides support for verifying the MSM to BT pin
 	  connectivity.
 
+choice
+	prompt "RAM options (NORMALMEM, BIGMEM, MAXMEM, PERSONAL)"
+
+config ANCORA_NORMALMEM
+       bool "select NORMAL memory config"
+       help 
+		Enable 352MB memory config. Breaks 720p only.	
+
+config ANCORA_BIGMEM
+       bool "select BIGMEM memory config"
+       help 
+		Enable 352MB memory config. Breaks 720p only.
+
+config ANCORA_HADI
+       bool "select HADI memory config"
+       help 
+		Enable 377MB memory config with working HD
+
+endchoice
+
+config FORCE_FAST_CHARGE
+	bool "Force AC charge mode at will"
+	default y
+	help
+	  A simple sysfs interface to force adapters that
+	  are detected as USB to charge as AC.
+
 config MSM_FAKE_BATTERY
 		depends on POWER_SUPPLY
 		default n
@@ -2210,21 +2238,5 @@ config MSM_CACHE_DUMP_ON_PANIC
 	  look at them in a RAM dump will give useless data. Select this if you
 	  want to dump the L1 and L2 caches on panic before any flush occurs.
 	  If unsure, say N
-
-config MSM_SCHED_FAST_CPU_ONLINE
-	bool "Fast scheduler update for CPU online"
-	depends on ARCH_MSM8X60
-	default n
-	help
-	  Bypass scheduler domain reconstruction when onlining the second
-	  CPU on 8X60 to speed up operation.
-
-
-config FORCE_FAST_CHARGE
-	bool "Force AC charge mode at will"
-	default y
-	help
-	  A simple sysfs interface to force adapters that
-	  are detected as USB to charge as AC.
 
 endif
